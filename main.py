@@ -1,3 +1,7 @@
+import copy
+import operator
+import matplotlib.colors as colors
+import tkinter
 from tkinter import *
 from tkinter import ttk as ttk
 from tkinter import messagebox as mbox
@@ -15,6 +19,609 @@ class tkPoint:
         self.X = gx
         self.Y = gy
         return
+
+
+class tkPoint3D:
+    X = 0
+    Y = 0
+    Z = 0
+    W = 1
+
+    def __init__(self, gx, gy, gz):
+        self.X = gx
+        self.Y = gy
+        self.Z = gz
+        return
+
+class tkSurface:
+    S = []
+    ST = []
+    N = 0
+    M = 0
+    SurfaceList = []
+    SurfaceListT = []
+    SurfaceListR = []
+
+    def __init__(self,n=0,m=0):
+        self.N = n
+        self.M = m
+        self.S  = []
+        self.ST = []
+        self.SurfaceList = []
+        self.SurfaceListT = []
+        self.SurfaceListR = []
+
+        for i in range(0, m):
+            Tlist = []
+            for j in range(0, n):
+                Tlist.append(tkPoint3D(-100*(m%2)*(m//2) -50*((m+1)%2)*(m//2+1) + 100*i,-100*(n%2)*(n//2) -50*((n+1)%2)*(n//2+1) + 100 * j, 0))
+            self.S.append(Tlist)
+            self.ST.append(Tlist)
+
+
+
+
+class surfaceDialog():
+    def __init__(self, parent):
+        top = self.top = Toplevel(parent)
+        self.SubmitButton = Button(top, text='Создать', command=self.DestWin, width=20)
+        self.centreWindow()
+        self.top.wm_title("Создание поверхности")
+
+        self.labelMain = Label(top, text = "Surface size:")
+        self.labelX = Label(top,text = "x")
+        self.pointFieldM = Entry(top)
+        self.pointFieldN = Entry(top)
+
+        self.labelMain.grid(row=1, column=1)
+
+        self.pointFieldM = Entry(top)
+        self.pointFieldN = Entry(top)
+
+        self.pointFieldN.insert(0, 3)
+        self.pointFieldM.insert(0, 3)
+
+        self.pointFieldN.grid(row=2, column=1)
+        self.labelX.grid(row=2, column=2)
+        self.pointFieldM.grid(row=2, column=3)
+        self.SubmitButton.grid(row=3, column=0, columnspan=3)
+
+    # Закрытие окна
+    def DestWin(self):
+        self.callback([self.pointFieldM.get(), self.pointFieldN.get()])
+        self.top.destroy()
+
+    # Обратный вызов
+    def set_callback(self, a_func):
+        self.callback = a_func
+
+    def centreWindow(self):
+        w = 260
+        h = 240
+
+        sw = self.top.winfo_screenwidth()
+        sh = self.top.winfo_screenheight()
+
+        x = (sw - w) / 2
+        y = (sh - h) / 2 - 50
+        self.top.geometry('%dx%d+%d+%d' % (w, h, x, y))
+
+
+
+class pointDialog():
+    def __init__(self, parent,data):
+        top = self.top = Toplevel(parent)
+        self.SubmitButton = Button(top, text='Изменить', command=self.DestWin, width=20)
+        self.centreWindow()
+        self.top.wm_title("Изменение координат точки")
+
+
+        self.labelX = Label(top, text="X:")
+        self.labelY = Label(top, text="Y:")
+        self.labelZ = Label(top, text="Z:")
+
+        self.labelX.grid(row=1, column=0)
+        self.labelY.grid(row=2, column=0)
+        self.labelZ.grid(row=3, column=0)
+
+        self.pointFieldX = Entry(top)
+        self.pointFieldY = Entry(top)
+        self.pointFieldZ = Entry(top)
+
+        self.pointFieldX.insert(0, data.X)
+        self.pointFieldY.insert(0, data.Y)
+        self.pointFieldZ.insert(0, data.Z)
+
+        self.pointFieldX.grid(row=1, column=1)
+        self.pointFieldY.grid(row=2, column=1)
+        self.pointFieldZ.grid(row=3, column=1)
+
+        self.SubmitButton.grid(row=4, column=0, columnspan=2)
+
+    # Закрытие окна
+    def DestWin(self):
+        self.callback([self.pointFieldX.get(), self.pointFieldY.get(), self.pointFieldZ.get()])
+        self.top.destroy()
+
+    # Обратный вызов
+    def set_callback(self, a_func):
+        self.callback = a_func
+
+    def centreWindow(self):
+        w = 260
+        h = 240
+
+        sw = self.top.winfo_screenwidth()
+        sh = self.top.winfo_screenheight()
+
+        x = (sw - w) / 2
+        y = (sh - h) / 2 - 50
+        self.top.geometry('%dx%d+%d+%d' % (w, h, x, y))
+
+
+
+    # Закрытие окна
+    def DestWin(self):
+        self.callback([self.pointFieldX.get(), self.pointFieldY.get(), self.pointFieldZ.get()])
+        self.top.destroy()
+
+    # Обратный вызов
+    def set_callback(self, a_func):
+        self.callback = a_func
+
+    def centreWindow(self):
+        w = 260
+        h = 240
+
+        sw = self.top.winfo_screenwidth()
+        sh = self.top.winfo_screenheight()
+
+        x = (sw - w) / 2
+        y = (sh - h) / 2 - 50
+        self.top.geometry('%dx%d+%d+%d' % (w, h, x, y))
+
+
+
+
+# Окно для построения поверхности Безье
+
+class BezSect:
+    def __init__(self, parent):
+        top = self.top = Toplevel(parent)
+        self.centreWindow()
+        self.top.wm_title("Рисование поверхности Безье")
+        menubar = Menu(self.top)
+
+        self.useLighting = False
+        self.varL = tkinter.IntVar()
+
+        self.slider = Scale(self.top, from_=0, to=1000,
+                               orient="horizontal",
+                               command=self.updateValue)
+        self.checkbox = Checkbutton(self.top,text = "Lighting",variable = self.varL, onvalue = 1, offvalue = 0,command=self.updateLight)
+
+        menubar.add_command(label = "Создать поле",command = self.onNew)
+        self.checkbox.grid(row = 0,column = 0)
+        self.slider.grid(row = 0, column = 1)
+        self.top.config(menu=menubar)
+
+        #self.surface = tkSurface(2,2)
+        self.global_temp = []
+        #self.generate_bezfield()
+        self.LightSource = tkPoint3D(300,300,500)
+        self.LightIntensity = 0
+
+        self.alpha = 0
+        self.beta = 0
+        self.gamma = 0
+
+
+
+
+
+
+
+
+
+
+        self.canvas = Canvas(self.top, bg="white", width=900, height=900)
+
+        self.canvas.bind("<Up>",self.turnXright)
+        self.canvas.bind("<Down>",self.turnXleft)
+        self.canvas.bind("<Left>",self.turnYdown)
+        self.canvas.bind("<Right>",self.turnYup)
+        self.canvas.bind("<Button-3>",self.onMove)
+        self.canvas.bind("<Button-2>",self.getInfo)
+        self.canvas.grid(row = 1,columnspan = 2)
+        self.canvas.configure(scrollregion=(-300, -300, 300, 300))
+        self.canvas.xview_moveto(.5)
+        self.canvas.yview_moveto(.5)
+
+        self.canvas.focus_set()
+        #self.redraw()
+
+    def updateValue(self,A):
+        self.LightIntensity = int(A)
+        self.redraw()
+
+    def updateLight(self):
+        self.useLighting = self.varL.get() == 1
+        self.redraw()
+
+    def onMove(self,event):
+        t = self.canvas.gettags(self.canvas.find_withtag("current"))
+
+        if (len(t)>0) and (t[0] != "current"):
+            if t[0] == "Light":
+                editPoint = pointDialog(self.top,self.LightSource)
+                editPoint.set_callback(self.editLight)
+            else:
+                i = int(t[0])
+                j = int(t[1])
+                self.global_temp = [i,j]
+                editPoint = pointDialog(self.top, self.surface.S[i][j])
+                editPoint.set_callback(self.editPoint)
+        return
+
+    def onNew(self):
+        nsurf = surfaceDialog(self.top)
+        nsurf.set_callback(self.newSurface)
+
+    def editLight(self,astr=''):
+        self.LightSource.X = float(astr[0])
+        self.LightSource.Y = float(astr[1])
+        self.LightSource.Z = float(astr[2])
+        self.redraw()
+
+    # Добавление объекта в память программы
+    def editPoint(self, astr=''):
+        i = self.global_temp[0]
+        j = self.global_temp[1]
+
+        self.surface.S[i][j].X = float(astr[0])
+        self.surface.S[i][j].Y = float(astr[1])
+        self.surface.S[i][j].Z = float(astr[2])
+
+        self.global_temp = []
+
+        self.generate_bezfield()
+        self.redraw()
+
+    def newSurface(self, astr = ''):
+
+        self.surface = tkSurface(int(astr[0]),int(astr[1]))
+        self.generate_bezfield()
+        self.slider.set(500)
+        self.redraw()
+
+
+    def turnXright(self,event):
+        self.alpha = self.alpha + 10
+        self.redraw()
+
+    def turnYdown(self,event):
+        self.beta = self.beta + 10
+        self.redraw()
+
+    def turnXleft(self,event):
+        self.alpha = self.alpha - 10
+        self.redraw()
+
+    def turnYup(self,event):
+        self.beta = self.beta - 10
+        self.redraw()
+
+    def getInfo(self, event):
+        print(self.canvas.gettags(self.canvas.find_withtag("current")))
+        print(self.canvas.gettags(self.canvas.find_below(self.canvas.find_withtag("current"))))
+        print(self.canvas.gettags(self.canvas.find_above(self.canvas.find_withtag("current"))))
+        A = self.canvas.coords(self.canvas.find_withtag("current"))
+        x1=(A[0]+A[2])/2-0.05
+        y1=(A[1]+A[5])/2-0.05
+        x2=(A[0]+A[2])/2+0.05
+        y2=(A[1]+A[5])/2+0.05
+        # x2=self.canvas.coords(self.canvas.find_withtag("current"))[4]
+        # y2=self.canvas.coords(self.canvas.find_withtag("current"))[5]
+        print(x1,y1,x2,y2)
+        print(self.canvas.coords(self.canvas.find_withtag("current")))
+        print(self.canvas.gettags(self.canvas.find_overlapping(x1,y1,x2,y2)))
+
+
+
+    def proj(self,A):
+        B = self.rot(A)
+        obj = np.array([B.X,B.Y,B.Z,B.W])
+        projectionMatrix = np.array([[1, 0, 0, 0],
+                                     [0, 1, 0, 0],
+                                     [0, 0, 0, 0],
+                                     [0, 0, 0, 1]])
+        obj = obj.dot(projectionMatrix)
+        res = tkPoint3D(obj[0],obj[1],obj[2])
+        return res
+
+    def projNOROT(self,A):
+        B = A
+        obj = np.array([B.X, B.Y, B.Z, B.W])
+        projectionMatrix = np.array([[1, 0, 0, 0],
+                                     [0, 1, 0, 0],
+                                     [0, 0, 0, 0],
+                                     [0, 0, 0, 1]])
+        obj = obj.dot(projectionMatrix)
+        res = tkPoint3D(obj[0], obj[1], obj[2])
+        return res
+
+    def rot(self,A):
+        obj = np.array([A.X,A.Y,A.Z,A.W])
+
+        alphaDeg = np.deg2rad(self.alpha)
+        betaDeg = np.deg2rad(self.beta)
+        gammaDeg = np.deg2rad(self.gamma)
+        rotX = np.array([[1,0,0,0],
+                         [0,np.cos(alphaDeg),np.sin(alphaDeg),0],
+                         [0,-1*np.sin(alphaDeg),np.cos(alphaDeg),0],
+                         [0,0,0,1]])
+        rotY = np.array([[np.cos(betaDeg), 0, -1*np.sin(betaDeg), 0],
+                         [0, 1, 0, 0],
+                         [np.sin(betaDeg), 0, np.cos(betaDeg), 0],
+                         [0, 0, 0, 1]])
+        rotZ = np.array([[np.cos(gammaDeg), np.sin(gammaDeg), 0, 0],
+                         [-1*np.sin(gammaDeg), np.cos(gammaDeg),0, 0],
+                         [0, 0, 1, 0],
+                         [0, 0, 0, 1]])
+
+        turnMatrix = rotZ.dot(rotY)
+        turnMatrix = turnMatrix.dot(rotX)
+        obj = obj.dot(turnMatrix)
+        res = tkPoint3D(obj[0],obj[1],obj[2])
+        return res
+
+
+
+
+
+
+
+
+
+    def turn(self):
+        self.surface.ST = []
+        self.surface.SurfaceListT = []
+        self.surface.SurfaceListR = []
+        index_i = 0
+        for i in self.surface.S:
+            Tlist = []
+            index_j =0
+            for j in i:
+                Tlist.append(self.proj(j))
+                index_j = index_j + 1
+            index_i = index_i + 1
+            self.surface.ST.append(Tlist)
+        index_i = 0
+        for i in self.surface.SurfaceList:
+            Tlist = []
+            Rlist = []
+            index_j = 0
+            for j in i:
+                Rlist.append(self.rot(j))
+                Tlist.append(self.proj(j))
+                index_j = index_j + 1
+            index_i = index_i + 1
+            self.surface.SurfaceListR.append(Rlist)
+            self.surface.SurfaceListT.append(Tlist)
+
+
+    def overlap_polygons(self):
+        tags = self.canvas.find_withtag("polygon")
+        X = []
+        for tag in tags:
+            A = self.canvas.coords(tag)
+            x1 = (A[0] + A[2]) / 2 - 0.05
+            y1 = (A[1] + A[5]) / 2 - 0.05
+            x2 = (A[0] + A[2]) / 2 + 0.05
+            y2 = (A[1] + A[5]) / 2 + 0.05
+            #if len(self.canvas.find_overlapping(x1,y1,x2,y2)) == 0:
+                #self.canvas.itemconfig(tag,fill = "")
+            #print("Overlap for ",self.canvas.gettags(tag), " => ", self.canvas.gettags(self.canvas.find_overlapping(x1,y1,x2,y2)))
+
+
+
+
+    def redraw(self):
+        self.canvas.delete("all")
+        self.turn()
+        self.generate_bezfield()
+
+
+        self.canvas.create_text(400,-150,text = str([self.alpha % 360,self.beta % 360]))
+
+        R = []
+
+        k = 0
+        for i in range (0,len(self.surface.SurfaceListT)):
+            for j in range (0,len(self.surface.SurfaceListT[0])):
+                if (j != len(self.surface.SurfaceListT[0]) - 1) and (i != len(self.surface.SurfaceListT)-1):
+
+
+
+
+                    sR = self.rot(tkPoint3D(self.surface.SurfaceList[i][j].X,self.surface.SurfaceList[i][j].Y,self.surface.SurfaceList[i][j].Z)).Z < \
+                         self.rot(tkPoint3D(self.surface.SurfaceList[i][j].X,self.surface.SurfaceList[i][j].Y,self.surface.SurfaceList[i][j].Z+5)).Z
+                    sR = sR == (self.rot(tkPoint3D(0,0,0)).Z < self.rot(tkPoint3D(0,0,1)).Z)
+
+
+
+                    sX = self.surface.SurfaceListR[i][j].X < self.surface.SurfaceListR[i][j + 1].X and \
+                         self.surface.SurfaceListR[i + 1][j].X < self.surface.SurfaceListR[i + 1][j + 1].X
+                    sY = self.surface.SurfaceListR[i][j].Y < self.surface.SurfaceListR[i+1][j].Y and \
+                         self.surface.SurfaceListR[i][j+1].Y < self.surface.SurfaceListR[i + 1][j + 1].Y
+
+                    s = (sX and sY and sR) or (not sX and not sY and sR)
+
+
+
+                    colorStr = "#fc5203"
+                    if s:
+                        colorStr = "#2c03fc"
+
+                    z = int(self.surface.SurfaceListR[i][j].Z)
+
+                    if self.useLighting:
+                        L = self.LightSource
+                        P = self.surface.SurfaceListR[i][j]
+                        N = self.rot(tkPoint3D(self.surface.SurfaceList[i][j].X, self.surface.SurfaceList[i][j].Y,
+                                               self.surface.SurfaceList[i][j].Z + 10))
+                        V = tkPoint3D(0, 0, 1000)
+                        vecL = (-P.X + L.X, -P.Y + L.Y, -P.Z + L.Z)
+                        vecN = (N.X - P.X, N.Y - P.Y, N.Z - P.Z)
+                        vecV = (V.X - P.X, V.Y - P.Y, V.Z - P.Z)
+                        # vecH = [vecL[0] + vecV[0], vecL[1] + vecV[1], vecL[2] + vecV[2]]
+                        # norm = np.sqrt(vecH[0] ** 2 + vecH[1] ** 2 + vecH[2] ** 2)
+                        # for ii in range(0, len(vecH)):
+                        #     vecH[ii] = vecH[ii] / norm
+                        # vecH = tuple(vecH)
+                        # cosNH = abs((vecH[0] * vecN[0] + vecH[1] * vecN[1] + vecH[2] * vecN[2]) / np.sqrt(
+                        #     vecH[0] ** 2 + vecH[1] ** 2 + vecH[2] ** 2) / np.sqrt(
+                        #     vecN[0] ** 2 + vecN[1] ** 2 + vecN[2] ** 2))
+                        cosLN = abs((vecL[0] * vecN[0] + vecL[1] * vecN[1] + vecL[2] * vecN[2]) / np.sqrt(
+                            vecL[0] ** 2 + vecL[1] ** 2 + vecL[2] ** 2) / np.sqrt(
+                            vecN[0] ** 2 + vecN[1] ** 2 + vecN[2] ** 2))
+                        # light
+                        dist = np.sqrt((P.X - L.X) ** 2 + (P.Y - L.Y) ** 2 + (P.Z - L.Z) ** 2)
+                        iA = 0.3 * self.LightIntensity * (1000 - dist % 1000) / 1000
+                        iD = 1.9 * self.LightIntensity * (1000 - dist % 1000) / 1000 * cosLN
+                        iS = 0# + 1.3 * self.LightIntensity * (1000 - dist % 1000) / 1000 * (cosNH ** 5)
+                        light = int((iA + iD+iS))
+                        if light > 1000:
+                            light = 1000
+                    else:
+                        light = 1000
+
+                    #print(iA,iD,iS)
+
+
+
+                    R.append([i,j,k,colorStr,z,str(sX)+str(sY)+str(sR),light])
+
+                    k = k + 1
+
+        R = sorted(R,key=operator.itemgetter(4))
+
+        for q in range (0,len(R)):
+            i = R[q][0]
+            j = R[q][1]
+            k = R[q][2]
+            colorStr = R[q][3]
+            z = R[q][4]
+            place = R[q][5]
+            l = R[q][6]/1000
+
+            A = list(colors.hex2color(colorStr))
+            for ii in range(0,len(A)):
+                A[ii] = A[ii]*l
+            true_color = colors.rgb2hex(tuple(A))
+
+            self.canvas.create_polygon(self.surface.SurfaceListT[i][j].X, self.surface.SurfaceListT[i][j].Y,
+                                       self.surface.SurfaceListT[i][j + 1].X, self.surface.SurfaceListT[i][j + 1].Y,
+                                       self.surface.SurfaceListT[i + 1][j + 1].X,
+                                       self.surface.SurfaceListT[i + 1][j + 1].Y,
+                                       self.surface.SurfaceListT[i + 1][j].X, self.surface.SurfaceListT[i + 1][j].Y,
+                                       fill=true_color, outline="#000000",
+                                       tags="polygon" + " " + str(k) + " "+place+ " " + str(z)+" "+str(l))
+
+
+
+        i = 0
+        for A in self.surface.ST:
+            j = 0
+            for B in A:
+                self.canvas.create_oval(B.X - 4, B.Y + 4, B.X + 4, B.Y - 4, tags=str(i) + " " + str(j),
+                                        activefill="#ffffff", fill="#000000")
+                j = j + 1
+            i = i + 1
+        if self.useLighting:
+            src = self.projNOROT(self.LightSource)
+            self.canvas.create_rectangle(src.X - 5, src.Y + 5, src.X + 5, src.Y - 5,
+                                         tags="Light" + " " + str(self.LightIntensity), activefill="#b2ff36",
+                                         fill="#000000")
+
+
+
+
+    #Поиск точки, делящей отрезок AB в отношении arg
+    def lerp3D(self, pointA, pointB, arg):
+        temp = tkPoint3D(pointA.X + arg * (pointB.X - pointA.X), pointA.Y + arg * (pointB.Y - pointA.Y),pointA.Z + arg * (pointB.Z - pointA.Z))
+        return temp
+
+
+    # Алгоритм де Кастельжо
+    def bezline(self, arr, arg):
+        temp = []
+        for i in range(len(arr) - 1):
+            temp.append(self.lerp3D(arr[i], arr[i + 1], arg))
+        if len(arr) == 2:
+            self.global_temp.append(temp[0])
+        else:
+            self.bezline(temp, arg)
+
+
+    def generate_bezfield(self):
+        self.surface.SurfaceList = []
+        Bezlist = []
+        for i in range(0,self.surface.M):
+
+
+            t = 0
+            while t<1:
+                self.bezline(self.surface.S[i],t)
+                t = t + 0.05
+            Bezlist.append(self.global_temp)
+            self.global_temp = []
+
+        for j in range (0,len(Bezlist[0])):
+            temp = []
+            for i in range (0,self.surface.M):
+                temp.append(Bezlist[i][j])
+            t = 0
+            while t<1:
+                self.bezline(temp,t)
+                t = t + 0.05
+            self.surface.SurfaceList.append(self.global_temp)
+            self.global_temp = []
+
+
+
+    def DestWin(self):
+        self.top.destroy()
+
+
+
+    def centreWindow(self):
+        w = 900
+        h = 900
+
+        sw = self.top.winfo_screenwidth()
+        sh = self.top.winfo_screenheight()
+
+        x = (sw - w) / 2
+        y = (sh - h) / 2 - 50
+        self.top.geometry('%dx%d+%d+%d' % (w, h, x, y))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 class tkLine:
@@ -69,7 +676,7 @@ class SectWin():
         self.C = False
         self.fin = False
 
-        self.canvas = Canvas(self.top, bg="white", width=900, height=900)
+        self.canvas = Canvas(self.top, bg="white", width=2560, height=1020)
         self.canvas.pack()
         self.canvas.bind("<ButtonPress-1>", self.mouseGrabLine)  # Создание новой точки
 
@@ -80,6 +687,10 @@ class SectWin():
         self.canvas.bind("<ButtonPress-1>", self.mouseGrabLine)  # Создание новой точки
 # Режим создания сечения
     def modeSect(self):
+
+        if self.fin:
+            self.ClearSec()
+
         self.canvas.unbind("<ButtonPress-1>")
         self.canvas.unbind("<ButtonRelease-1>")
         self.canvas.bind("<Button-1>", self.mouseGrabSect)  # Создание новой точки
@@ -259,8 +870,8 @@ class SectWin():
         self.top.destroy()
 
     def centreWindow(self):
-        w = 900
-        h = 900
+        w = 2560
+        h = 1020
 
         sw = self.top.winfo_screenwidth()
         sh = self.top.winfo_screenheight()
@@ -421,7 +1032,6 @@ class BezField:
 
 
 # Диалог создания фигуры
-
 class objDialog():
     def __init__(self, parent):
         top = self.top = Toplevel(parent)
@@ -508,7 +1118,7 @@ class Win(Frame):
     def initUI(self):
         self.parent.title("Graphic demo")
         self.style = ttk.Style()
-        self.style.theme_use("default")
+        self.style.theme_use("clam")
         self.config(bg="white")
         self.pack(fill=BOTH, expand=1)
 
@@ -519,6 +1129,7 @@ class Win(Frame):
         menubar.add_command(label="Диметрия", command=self.onDimetry)
         menubar.add_command(label="Изометрия", command=self.onIsometry)
         menubar.add_command(label="Кривая Безье", command=self.onBezline)
+        menubar.add_command(label="Поверхность Безье", command=self.onBezsect)
         menubar.add_command(label="Отсечение отрезков", command=self.onSection)
 
     def onSection(self):
@@ -528,6 +1139,13 @@ class Win(Frame):
     def onBezline(self):
         newBez = BezField(self)
         return
+
+
+    def onBezsect(self):
+        newBez = BezSect(self)
+        return
+
+
 
     def onNewObject(self):
         newobj = objDialog(self)
